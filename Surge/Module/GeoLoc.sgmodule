@@ -1,0 +1,44 @@
+#!name=SNS GeoLoc
+#!desc=修改常见社群 IP 归属地显示
+#!category=HotKids
+#!arguments=SNS:DIRECT,Twitter 代理:DIRECT,Twitter 开关:RULE-SET,Bilibili:bilibili,Douyin:amemv,Toutiao:snssdk,Kuwo:kuwo,Xiaohongshu:xiaohongshu,Weibo:weibo,Zhihu:zhihu
+#!arguments-desc=Twitter 开关输入 # 表示禁用；其他平台如需禁用，请输入任意非常见域名值（e.g. NO）
+
+### fork from https://raw.githubusercontent.com/ConnersHua/RuleGo/master/Surge/Module/GeoLoc.sgmodule
+
+[Rule]
+# bilibili
+URL-REGEX,https:\/\/api\.{{{Bilibili}}}\.com\/x\/v\d\/reply\/add,{{{SNS}}}
+
+# ByteDance
+# (Amemv)
+AND,((DOMAIN-KEYWORD,{{{Douyin}}}.com,extended-matching),(PROTOCOL,UDP)),REJECT
+DOMAIN-KEYWORD,-core-hl.{{{Douyin}}}.com,{{{SNS}}},extended-matching
+DOMAIN-KEYWORD,-core-lf.{{{Douyin}}}.com,{{{SNS}}},extended-matching
+
+# (Toutiao)
+DOMAIN,ib.{{{Toutiao}}}.com,{{{SNS}}}
+
+# Kuwo
+DOMAIN,ip.i.{{{Kuwo}}}.cn,{{{SNS}}}
+
+# Xiaohongshu
+DOMAIN,edith.{{{Xiaohongshu}}}.com,{{{SNS}}},extended-matching
+
+# Weibo
+URL-REGEX,https:\/\/api\.{{{Weibo}}}\.cn\/\d\/comments\/(create|reply),{{{SNS}}}
+URL-REGEX,https:\/\/{{{Weibo}}}\.com\/ajax\/comments\/create,{{{SNS}}}
+URL-REGEX,https:\/\/api\.{{{Weibo}}}\.cn\/\d\/statuses\/send,{{{SNS}}}
+# (Web)
+DOMAIN,www.{{{Weibo}}}.com,{{{SNS}}}
+DOMAIN,s.{{{Weibo}}}.com,{{{SNS}}}
+
+# Zhihu
+URL-REGEX,https:\/\/api\.{{{Zhihu}}}\.com\/answers,{{{SNS}}}
+URL-REGEX,https:\/\/api\.{{{Zhihu}}}\.com\/comment_v\d\/answers\/\d+\/comment,{{{SNS}}}
+
+# Twitter/X
+{{{Twitter 开关}}},https://raw.githubusercontent.com/HotKids/Rules/master/Surge/RULE-SET/Twitter.list,{{{Twitter 代理}}},extended-matching
+
+[MITM]
+hostname = %INSERT% api.{{{Bilibili}}}.com, api.{{{Weibo}}}.cn, {{{Weibo}}}.com, api.{{{Zhihu}}}.com

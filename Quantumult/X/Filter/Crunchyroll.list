@@ -1,4 +1,5 @@
 # > Crunchyroll
 USER-AGENT,Crunchyroll*,Crunchyroll
 DOMAIN-SUFFIX,crunchyroll.com,Crunchyroll
-// DOMAIN-SUFFIX,vrv.co,Crunchyroll
+# 如需使用 VRV，请将此条取消注释并走 US 代理
+# DOMAIN-SUFFIX,vrv.co

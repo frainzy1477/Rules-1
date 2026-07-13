@@ -1,34 +1,8 @@
 # > Crunchyroll
 USER-AGENT,Crunchyroll*
 DOMAIN-SUFFIX,crunchyroll.com
+// 如需使用 VRV，请将此条取消注释并走 US 代理
 // DOMAIN-SUFFIX,vrv.co
-
-# > Discovery+
-USER-AGENT,discovery+*
-USER-AGENT,DPlus*
-DOMAIN-SUFFIX,discoveryplus.com
-DOMAIN-SUFFIX,disco-api.com
-DOMAIN-SUFFIX,dnitv.com
-DOMAIN-SUFFIX,dplus.us.prd.media.max.com
-DOMAIN-SUFFIX,dplus-amer.prd.api.discomax.com
-AND,((USER-AGENT,*DPlus*), (DOMAIN,default.any-any.prd.api.discomax.com))
-// DOMAIN,default.any-any.prd.api.discomax.com // 会影响 HBO Max
-DOMAIN,us1-prod.disco-api.com
-DOMAIN,us1-prod-images.disco-api.com
-DOMAIN,kvinit-prod.api.kochava.com
-DOMAIN,4unal8ngvngjm07lj2q2umlc4.litix.io
-DOMAIN,content-ause1-ur-discovery1.uplynk.com
-DOMAIN,content-ausw1-ur-discovery1.uplynk.com
-DOMAIN,content-ausw2-ur-discovery1.uplynk.com
-// DOMAIN,go-prod-vz.akamaized.net
-
-# > HBO Max
-// USER-AGENT,HBOMAX*
-// DOMAIN-SUFFIX,hbo.com
-// DOMAIN-SUFFIX,hbogo.com
-// DOMAIN-SUFFIX,hbonow.com
-// DOMAIN-SUFFIX,hbomax.com
-// DOMAIN-SUFFIX,hbomaxcdn.com
 
 # > Hulu
 DOMAIN-SUFFIX,hulu.com
@@ -37,12 +11,6 @@ DOMAIN-SUFFIX,huluim.com
 DOMAIN-SUFFIX,hulustream.com
 DOMAIN,cws-hulu.conviva.com
 // DOMAIN,assetshuluimcom-a.akamaihd.net
-
-# > Max
-// USER-AGENT,Max*
-// PROCESS-NAME,com.wbd.stream
-// DOMAIN-SUFFIX,max.com
-// DOMAIN-SUFFIX,discomax.com
 
 # > MGM+
 DOMAIN-SUFFIX,mgmplus.com
@@ -68,6 +36,11 @@ DOMAIN-SUFFIX,pplusstatic.com
 // DOMAIN-SUFFIX,mtvnservices.com #MTV
 // DOMAIN-SUFFIX,cws.conviva.com
 DOMAIN,link.theplatform.com
+// US
+AND,((DOMAIN,cbsi.live.ott.irdeto.com), (USER-AGENT,PPlus*))
+// Intl.
+AND,((DOMAIN,cbsi.live.ott.irdeto.com), (USER-AGENT,Paramountlus*))
+// 播放验证，此条 Paramount+ 国际版与美国版共用，可使用 AND 语法区分。iOS 15 下 UA 不可用需 MITM 相关 HOST
 DOMAIN,cbsi.live.ott.irdeto.com
 // DOMAIN,thumbnails.cbsig.net #缩略图
 // DOMAIN,cbsinteractive.hb.omtrdc.net
@@ -80,11 +53,11 @@ DOMAIN,cbsplaylistserver.aws.syncbak.com
 
 # > Peacock
 USER-AGENT,peacock*
+DOMAIN-SUFFIX,cdn.peacocktv.com
 DOMAIN-SUFFIX,peacocktv.com
+// 屏蔽广告
+// DOMAIN,video-ads-module.ad-tech.nbcuni.com
 
 # > Roku
 DOMAIN-SUFFIX,roku.com
 DOMAIN-SUFFIX,rokutime.com
-
-# > T-Mobile
-DOMAIN-SUFFIX,t-mobile.com

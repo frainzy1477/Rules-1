@@ -1,7 +1,12 @@
 payload:
   # > Spark Mail
-  # USER-AGENT, *spark
-  # USER-AGENT, *Spark
+  # 通用 SMTP 端口
+  # 明文 SMTP
+  # DEST-PORT,25
+  # SMTP over SSL (SMTPS)
+  # DEST-PORT,465
+  # SMTP Submission (STARTTLS)
+  # DEST-PORT,587
   - PROCESS-NAME,*spark
   - PROCESS-NAME,com.readdle.spark
   - DOMAIN-SUFFIX,gmail.com

@@ -13,7 +13,7 @@
  * 🎬 流媒体
  *    ├─ Netflix       含价格显示（可选关闭）、多级地区码提取
  *    ├─ Disney+       支持 Hotstar 地区识别（ID/MY/TH/PH/VN）
- *    ├─ HBO Max       支持第三方平台识别（JP/KR/CA）、VPN 检测
+ *    ├─ HBO Max       单请求方案（max.com 响应头取地区码）、第三方平台识别（JP/KR/CA）
  *    ├─ YouTube       双重请求机制（带/不带 Cookie）
  *    └─ Spotify       标准地区检测
  *
@@ -25,12 +25,18 @@
  * 🌐 社交 & 其他
  *    └─ Reddit        地区访问检测
  *
+ * 🧩 可选（默认关闭，需参数开启，且仅在可用时显示）
+ *    └─ Viu           HK/东南亚流媒体，viu=true 开启（参考 lmc999/RegionRestrictionCheck）
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * ⚙️ 参数配置
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * • geminiapikey=YOUR_KEY    Gemini API Key（可选，增强检测准确性）
  * • nfprice=false            关闭 Netflix 价格显示（默认开启）
+ * • notify=true              解锁状态变化推送（默认关闭）：可用性或区域变化时通知，
+ *                            超时/错误视为未知不触发，首次运行仅记录基线
+ * • viu=true                 开启 Viu 检测（默认关闭；开启后仅在可用时显示）
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * 🎨 状态指示
@@ -51,6 +57,38 @@ const CONFIG = {
 
 // 检测状态码定义
 const STATUS = { OK: 1, COMING: 2, FAIL: 0, TIMEOUT: -1, ERROR: -2 };
+
+// 面板参数（脚本级解析一次，主流程与 checkGemini 共用）
+let ARGS = {};
+
+/**
+ * 解锁状态变化推送（notify=true）：与上次快照对比，变化合并为一条通知
+ * 超时/错误视为未知态：不通知也不更新该服务基线，避免网络抖动刷屏
+ * 首次运行仅记录基线
+ */
+function notifyUnlockChanges(services) {
+  let prev = {};
+  try { prev = JSON.parse($persistentStore.read("mediaCheckNotifyState")) || {}; } catch (e) {}
+  const next = { ...prev };
+  const changes = [];
+  services.forEach(s => {
+    const st = s.result.status;
+    if (st === STATUS.TIMEOUT || st === STATUS.ERROR) return;
+    const avail = st === STATUS.OK || st === STATUS.COMING;
+    const region = s.result.region || "";
+    const cur = avail ? `1:${region}` : "0";
+    const old = prev[s.name];
+    next[s.name] = cur;
+    if (old === undefined || old === cur) return;
+    const oldAvail = old.charAt(0) === "1";
+    const oldRegion = old.slice(2);
+    if (!avail) changes.push(`🔴 ${s.name} 解锁失效`);
+    else if (!oldAvail) changes.push(`🟢 ${s.name} 已解锁${region ? `（${region}）` : ""}`);
+    else changes.push(`🔀 ${s.name} 区域变化 ${oldRegion || "?"} → ${region || "?"}`);
+  });
+  $persistentStore.write(JSON.stringify(next), "mediaCheckNotifyState");
+  if (changes.length) $notification.post("🎬 解锁状态变化", "", changes.join("\n"));
+}
 
 // 显示图标和颜色配置
 const ICONS = { SUCCESS: "🟢", WARNING: "🟡", COLORS: { SUCCESS: "#3CB371", WARNING: "#DAA520" } };
@@ -218,14 +256,45 @@ class ServiceChecker {
   }
 
   /**
-   * Netflix 价格查询（辅助方法）
+   * Netflix 价格表预取（与各服务检测并行发起，避免检测完成后再串行等一个 RTT）
+   * 价格表更新频率低，本地缓存 24 小时；请求失败时回退过期缓存
+   * @returns {Promise<Object|null>} 价格表 HTTP 响应（或缓存等价物）
+   */
+  static fetchNetflixPrices() {
+    const CACHE_KEY = "media_check_nf_prices";
+    const TTL = 86400000; // 24h
+
+    let cached = null;
+    try {
+      cached = JSON.parse($persistentStore.read(CACHE_KEY));
+    } catch { /* 无缓存或缓存损坏 */ }
+
+    if (cached?.body && Date.now() - cached.ts < TTL) {
+      return Promise.resolve({ status: 200, body: cached.body });
+    }
+
+    return Utils.request({ url: "https://raw.githubusercontent.com/tompec/netflix-prices/main/data/latest.json" })
+      .then(res => {
+        if (res?.status === 200 && res.body) {
+          $persistentStore.write(JSON.stringify({ ts: Date.now(), body: res.body }), CACHE_KEY);
+          return res;
+        }
+        // 非 200 → 回退过期缓存
+        return cached?.body ? { status: 200, body: cached.body } : res;
+      })
+      .catch(() => (cached?.body ? { status: 200, body: cached.body } : null));
+  }
+
+  /**
+   * Netflix 价格查询（从预取的价格表中查找）
+   * @param {Promise<Object|null>} pricesPromise - fetchNetflixPrices() 返回的 Promise
    * @param {string} region - 地区代码
    * @returns {Promise<string>} 价格字符串
    */
-  static async getNetflixPrice(region) {
+  static async getNetflixPrice(pricesPromise, region) {
     try {
-      const res = await Utils.request({ url: "https://raw.githubusercontent.com/tompec/netflix-prices/main/data/latest.json" });
-      if (res.status !== 200) return "";
+      const res = await pricesPromise;
+      if (!res || res.status !== 200) return "";
       const country = JSON.parse(res.body).find(i => i.country_code === region);
       const plan = country?.plans?.find(p => p.name === "premium");
       return plan ? `${plan.price} ${country.currency}` : "";
@@ -244,7 +313,7 @@ class ServiceChecker {
       try {
         const res = await Utils.request({ url: "https://www.disneyplus.com/" });
         if (res.status !== 200 || res.body.includes('Sorry, Disney+ is not available')) return { valid: false };
-        const match = res.body.match(/Region: ([A-Za-z]{2})[\s\S]*?CNBL: ([12])/);
+        const match = res.body.match(/Region: ([A-Za-z]{2})[\s\S]*?CNBL: [12]/);
         return match ? { valid: true, region: match[1] } : { valid: true, region: "" };
       } catch { return { valid: false }; }
     };
@@ -304,237 +373,45 @@ class ServiceChecker {
   }
 
   /**
-   * U-NEXT 解锁检测（内部辅助函数）
-   * 用于 HBO Max JP 地区验证，不单独显示
-   * @returns {Promise<Object>} 检测结果
-   */
-  static async checkUNext() {
-    try {
-      const payload = {
-        "operationName": "cosmo_getPlaylistUrl",
-        "variables": {
-          "code": "ED00467205",
-          "playMode": "caption",
-          "bitrateLow": 192,
-          "bitrateHigh": null,
-          "validationOnly": false
-        },
-        "query": `query cosmo_getPlaylistUrl($code: String, $playMode: String, $bitrateLow: Int, $bitrateHigh: Int, $validationOnly: Boolean) {
-  webfront_playlistUrl(
-    code: $code
-    playMode: $playMode
-    bitrateLow: $bitrateLow
-    bitrateHigh: $bitrateHigh
-    validationOnly: $validationOnly
-  ) {
-    subTitle
-    playToken
-    playTokenHash
-    beaconSpan
-    result {
-      errorCode
-      errorMessage
-      __typename
-    }
-    resultStatus
-    licenseExpireDate
-    urlInfo {
-      code
-      startPoint
-      resumePoint
-      endPoint
-      endrollStartPosition
-      holderId
-      saleTypeCode
-      sceneSearchList {
-        IMS_AD1
-        IMS_L
-        IMS_M
-        IMS_S
-        __typename
-      }
-      movieProfile {
-        cdnId
-        type
-        playlistUrl
-        movieAudioList {
-          audioType
-          __typename
-        }
-        licenseUrlList {
-          type
-          licenseUrl
-          __typename
-        }
-        __typename
-      }
-      umcContentId
-      movieSecurityLevelCode
-      captionFlg
-      dubFlg
-      commodityCode
-      movieAudioList {
-        audioType
-        __typename
-      }
-      __typename
-    }
-    __typename
-  }
-}`
-      };
-      
-      const tmpresult = await Utils.request({
-        url: "https://cc.unext.jp/",
-        method: "POST",
-        headers: { "Content-Type": "application/json", "User-Agent": CONFIG.UA },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!tmpresult.body) return Utils.createResult(STATUS.ERROR, "Error");
-      
-      const result = JSON.parse(tmpresult.body)?.data?.webfront_playlistUrl?.resultStatus;
-      
-      // 475/200 表示可用
-      if (result === 475 || result === "475" || result === 200 || result === "200") {
-        return Utils.createResult(STATUS.OK, "OK");
-      } else if (result === 467 || result === "467") {
-        return Utils.createResult(STATUS.FAIL, "No");
-      } else {
-        return Utils.createResult(STATUS.ERROR, `Code: ${result}`);
-      }
-    } catch {
-      return Utils.createResult(STATUS.ERROR, "Error");
-    }
-  }
-
-  /**
    * HBO Max 解锁检测
    * 特殊处理：JP (U-NEXT)、CA (Crave)、KR (Coupang Play)
-   * 参考 RegionRestrictionCheck 项目逻辑
+   *
+   * 2026-07 重写（参考 lmc999/RegionRestrictionCheck 单请求方案）：
+   * 原实现走 token → bootstrap → users/me 深层 API 链，该链的 token 接口
+   * 已被后端加上未公开的 disco_params 必需参数（400 invalid.headers），
+   * 导致所有节点必现 No。现改为单次请求 www.max.com（301 至 hbomax.com）：
+   * - 地区码取自最终响应头中的 countryCode=XX（Set-Cookie，已实测可得）
+   * - 可用地区列表取自正文 "url":"/xx/xx" 正则（与旧 Step 1 相同），补 US
+   * 代价：原依赖 token 的 VPN 检测（playbackInfo）随 API 链一并移除。
    * @returns {Promise<Object>} 检测结果
    */
   static async checkHBOMax() {
     try {
-      // Step 1: 从主页提取可用地区列表
-      let availableRegions = [];
-      try {
-        const homeRes = await Utils.request({ url: `https://www.hbomax.com/?t=${Date.now()}`, timeout: 8000 });
-        if (homeRes.body) {
-          // 提取所有 "url":"/xx/xx" 格式的地区链接
-          const regex = /"url":"\/([a-z]{2})\/[a-z]{2}"/gi;
-          let match;
-          const regions = new Set();
-          while ((match = regex.exec(homeRes.body)) !== null) {
-            regions.add(match[1].toUpperCase());
-          }
-          availableRegions = Array.from(regions);
-        }
-      } catch {}
+      const res = await Utils.request({ url: "https://www.max.com/" });
+      const body = res.body || "";
 
-      // Step 2: Token 获取
-      const tokenRes = await Utils.request({
-        url: "https://default.any-any.prd.api.hbomax.com/token?realm=bolt&deviceId=afbb5daa-c327-461d-9460-d8e4b3ee4a1f",
-        headers: {
-          "x-device-info": "beam/5.0.0 (desktop/desktop; Windows/10; afbb5daa-c327-461d-9460-d8e4b3ee4a1f/da0cdd94-5a39-42ef-aa68-54cbc1b852c3)",
-          "x-disco-client": "WEB:10:beam:5.2.1",
-          "Accept": "application/json, text/plain, */*"
-        }
-      });
-      if (tokenRes.status !== 200) return Utils.createResult(STATUS.FAIL, "No");
-      
-      let tokenData;
-      try {
-        tokenData = JSON.parse(tokenRes.body);
-      } catch {
-        return Utils.createResult(STATUS.FAIL, "No");
-      }
-      
-      const token = tokenData?.data?.attributes?.token;
-      if (!token) return Utils.createResult(STATUS.FAIL, "No");
-      
-      const commonHeaders = { "Cookie": `st=${token}`, "Accept": "application/json, text/plain, */*" };
+      // 地区码：重定向链最终响应头（如 Set-Cookie）中的 countryCode=XX
+      const headerStr = JSON.stringify(res.headers || {});
+      const region = headerStr.match(/countryCode=([A-Za-z]{2})/)?.[1]?.toUpperCase() || "";
+      if (!region) return Utils.createResult(STATUS.FAIL, "No");
 
-      // Step 3: Bootstrap
-      const bootstrapRes = await Utils.request({
-        url: "https://default.any-any.prd.api.hbomax.com/session-context/headwaiter/v1/bootstrap",
-        method: "POST",
-        headers: commonHeaders
-      });
-      
-      let bootstrapData;
-      try {
-        bootstrapData = JSON.parse(bootstrapRes.body);
-      } catch {
-        return Utils.createResult(STATUS.FAIL, "No");
-      }
-      
-      const route = bootstrapData?.routing;
-      if (!route?.domain) return Utils.createResult(STATUS.FAIL, "No");
+      // JP / CA / KR：经由第三方平台提供服务，直接标注不做二次校验
+      // （JP 原经 checkUNext() 校验 U-NEXT 可达性，但 U-NEXT 的 GraphQL 网关已启用
+      //   persisted query 白名单，自由查询一律 403 QUERY_NOT_IN_SAFELIST（2026-07
+      //   实测，完整/精简 query 均被拒），公开脚本的该检测全部失效，故移除校验）
+      if (region === "JP") return Utils.createResult(STATUS.COMING, "JP (U-NEXT)");
+      if (region === "CA") return Utils.createResult(STATUS.COMING, "CA (Crave)");
+      if (region === "KR") return Utils.createResult(STATUS.COMING, "KR (Coupang Play)");
 
-      // Step 4: User Region
-      const userRes = await Utils.request({
-        url: `https://default.${route.tenant}-${route.homeMarket}.${route.env}.${route.domain}/users/me`,
-        headers: commonHeaders
-      });
-      
-      if (userRes.status === 401 || userRes.status === 403) {
-        return Utils.createResult(STATUS.FAIL, "No");
-      }
-      
-      let region = "";
-      try {
-        const userData = JSON.parse(userRes.body);
-        region = userData?.data?.attributes?.currentLocationTerritory || "";
-      } catch {}
-      
-      if (!region || region.length !== 2) {
-        return Utils.createResult(STATUS.FAIL, "No");
+      // 可用地区列表：正文 "url":"/xx/xx" 地区链接；US 主站首页不含自身，手动补
+      const availableRegions = new Set(["US"]);
+      for (const m of body.matchAll(/"url":"\/([a-z]{2})\/[a-z]{2}"/gi)) {
+        availableRegions.add(m[1].toUpperCase());
       }
 
-      // Step 5: JP 特殊处理 - 优先验证 U-NEXT
-      if (region === "JP") {
-        const unextResult = await ServiceChecker.checkUNext();
-        if (unextResult.status === STATUS.OK) {
-          return Utils.createResult(STATUS.COMING, "JP (U-NEXT)");
-        } else {
-          return Utils.createResult(STATUS.FAIL, "JP (No)");
-        }
-      }
-      
-      // Step 5.5: CA 和 KR 特殊处理 - 通过第三方平台提供
-      if (region === "CA") {
-        return Utils.createResult(STATUS.COMING, "CA (Crave)");
-      }
-      if (region === "KR") {
-        return Utils.createResult(STATUS.COMING, "KR (Coupang Play)");
-      }
-      
-      // Step 6: 判断 region 是否在可用地区列表中
-      const isAvailable = availableRegions.includes(region);
-      if (!isAvailable) {
-        return Utils.createResult(STATUS.FAIL, `${region} (No)`);
-      }
-      
-      // Step 7: VPN 检测
-      let isVPN = false;
-      try {
-        const vpnRes = await Utils.request({
-          url: "https://default.any-any.prd.api.hbomax.com/any/playback/v1/playbackInfo",
-          headers: commonHeaders,
-          timeout: 5000
-        });
-        if (vpnRes.body && /VPN/i.test(vpnRes.body)) {
-          isVPN = true;
-        }
-      } catch {}
-
-      if (isVPN) {
-        return Utils.createResult(STATUS.FAIL, `${region} (VPN)`);
-      }
-      
-      return Utils.createResult(STATUS.OK, region);
-      
+      return availableRegions.has(region)
+        ? Utils.createResult(STATUS.OK, region)
+        : Utils.createResult(STATUS.FAIL, `${region} (No)`);
     } catch {
       return Utils.createResult(STATUS.FAIL, "No");
     }
@@ -547,25 +424,21 @@ class ServiceChecker {
    */
   static async checkYoutube() {
     try {
-      // 第一次请求：带 Cookie
-      const tmpresult1 = await Utils.request({
-        url: "https://www.youtube.com/premium",
-        headers: { 
-          "Cookie": "YSC=BiCUU3-5Gdk; CONSENT=YES+cb.20220301-11-p0.en+FX+700; GPS=1; VISITOR_INFO1_LIVE=4VwPMkB7W5A; PREF=tz=Asia.Shanghai; _gcl_au=1.1.1809531354.1646633279",
-          "Accept-Language": "en",
-          "User-Agent": CONFIG.UA 
-        }
-      });
-      
-      // 第二次请求：不带 Cookie
-      const tmpresult2 = await Utils.request({
-        url: "https://www.youtube.com/premium",
-        headers: {
-          "Accept-Language": "en",
-          "User-Agent": CONFIG.UA
-        }
-      });
-      
+      // 带 Cookie / 不带 Cookie 两次请求互相独立，并行发起
+      const [tmpresult1, tmpresult2] = await Promise.all([
+        Utils.request({
+          url: "https://www.youtube.com/premium",
+          headers: {
+            "Cookie": "YSC=BiCUU3-5Gdk; CONSENT=YES+cb.20220301-11-p0.en+FX+700; GPS=1; VISITOR_INFO1_LIVE=4VwPMkB7W5A; PREF=tz=Asia.Shanghai; _gcl_au=1.1.1809531354.1646633279",
+            "Accept-Language": "en"
+          }
+        }),
+        Utils.request({
+          url: "https://www.youtube.com/premium",
+          headers: { "Accept-Language": "en" }
+        })
+      ]);
+
       // 合并两次结果
       const combinedBody = tmpresult1.body + ":" + tmpresult2.body;
       
@@ -574,8 +447,9 @@ class ServiceChecker {
         return Utils.createResult(STATUS.FAIL, "CN");
       }
       
-      // 提取地区码
-      const region = combinedBody.match(/"countryCode":"([A-Z]{2})"/)?.[1];
+      // 提取地区码：countryCode 不一定有，contentRegion 一定有
+      const region = combinedBody.match(/"countryCode":"([A-Z]{2})"/)?.[1]
+                  || combinedBody.match(/"contentRegion":"([A-Z]{2})"/)?.[1];
       
       // 检查可用性标识
       const hasPurchaseButton = combinedBody.includes('purchaseButtonOverride');
@@ -645,14 +519,20 @@ class ServiceChecker {
 
   /**
    * Claude AI 解锁检测
+   * login 可用性判断与 cdn-cgi/trace 地区码提取并发请求，仅在可用时采用地区码
    * @returns {Promise<Object>} 检测结果
    */
   static async checkClaude() {
     try {
-      const res = await Utils.request({ url: "https://claude.ai/login" });
-      return (res.body && !res.body.includes("app-unavailable-in-region"))
-        ? Utils.createResult(STATUS.OK, "OK")
-        : Utils.createResult(STATUS.FAIL, "No");
+      const [loginRes, traceRes] = await Promise.all([
+        Utils.request({ url: "https://claude.ai/login" }),
+        Utils.request({ url: "https://claude.ai/cdn-cgi/trace" }).catch(() => null)
+      ]);
+      if (!loginRes.body || loginRes.body.includes("app-unavailable-in-region")) {
+        return Utils.createResult(STATUS.FAIL, "No");
+      }
+      const region = traceRes?.body.match(/loc=([A-Z]{2})/)?.[1] || "";
+      return Utils.createResult(STATUS.OK, region || "OK");
     } catch { return Utils.createResult(STATUS.FAIL, "No"); }
   }
 
@@ -680,8 +560,7 @@ class ServiceChecker {
     } catch {}
 
     // API 检测 fallback（需要 Key）
-    const args = Utils.parseArgs($argument);
-    const apiKey = (args.geminiapikey || "").trim();
+    const apiKey = (ARGS.geminiapikey || "").trim();
     if (apiKey && !["{", "}", "0", "null"].some(k => apiKey.toLowerCase().includes(k))) {
       try {
         const res = await Utils.request({ url: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}` });
@@ -699,13 +578,38 @@ class ServiceChecker {
 
   /**
    * Reddit 解锁检测
+   * 参考 lmc999/RegionRestrictionCheck：请求主站 www.reddit.com（而非 oauth.reddit.com
+   * API 网关，该域名反爬策略更激进，会对无 OAuth token 的请求普遍返回 403 造成误判）
    * @returns {Promise<Object>} 检测结果
    */
   static async checkReddit() {
     try {
-      const res = await Utils.request({ url: "https://oauth.reddit.com", headers: { "Accept": "application/json" } });
-      if (res.status === 200 || res.status === 401) return Utils.createResult(STATUS.OK, "OK");
-      return Utils.createResult(STATUS.FAIL, res.status === 403 ? "IP Blocked" : "No");
+      const res = await Utils.request({ url: "https://www.reddit.com/" });
+      return res.status === 200
+        ? Utils.createResult(STATUS.OK, "OK")
+        : Utils.createResult(STATUS.FAIL, "No");
+    } catch { return Utils.createResult(STATUS.TIMEOUT, "Timeout"); }
+  }
+
+  /**
+   * Viu 解锁检测（默认关闭，需面板参数 viu=true 启用；仅在可用时显示）
+   *
+   * 参考 lmc999/RegionRestrictionCheck：请求 www.viu.com，可用地区会重定向到
+   * www.viu.com/ott/{area}/{lang}，不支持的地区落到 no-service 页。原脚本取重定向
+   * 后最终 URL 的地区段判断；Surge $httpClient 不暴露 url_effective（实测 response
+   * 仅 status/headers），故改从最终页面正文里的 /ott/{area}/ 路径提取地区码——正文里
+   * 该路径多为相对形式（实测 SG 节点返回 `/ott/sg/en"`），不带 viu.com 前缀，故正则
+   * 只匹配 /ott/{2 位地区}/。提取不到即按不可用处理（安全失败：宁可不显示）。
+   * @returns {Promise<Object>} 检测结果
+   */
+  static async checkViu() {
+    try {
+      const res = await Utils.request({ url: "https://www.viu.com/" });
+      if (res.status !== 200) return Utils.createResult(STATUS.FAIL, "No");
+      const m = (res.body || "").match(/\/ott\/([a-z]{2})[/"']/i);
+      return m
+        ? Utils.createResult(STATUS.OK, m[1].toUpperCase())
+        : Utils.createResult(STATUS.FAIL, "No");
     } catch { return Utils.createResult(STATUS.TIMEOUT, "Timeout"); }
   }
 
@@ -716,6 +620,9 @@ class ServiceChecker {
  */
 (async () => {
   try {
+    const args = ARGS = Utils.parseArgs($argument);
+    // Netflix 价格表与各服务检测并行预取（仅在开启价格显示时）
+    const pricesPromise = args.nfprice !== "false" ? ServiceChecker.fetchNetflixPrices() : null;
     const results = await Promise.all([
       ServiceChecker.checkNetflix(),
       ServiceChecker.checkDisney(),
@@ -725,13 +632,14 @@ class ServiceChecker {
       ServiceChecker.checkChatGPT(),
       ServiceChecker.checkGemini(),
       ServiceChecker.checkClaude(),
-      ServiceChecker.checkReddit()
+      ServiceChecker.checkReddit(),
+      // Viu 默认关闭：仅当面板参数 viu=true 时才发起检测（否则占位 null，不显示）
+      args.viu === "true" ? ServiceChecker.checkViu() : Promise.resolve(null)
     ]);
 
-    const [netflix, disney, hbomax, youtube, spotify, chatgpt, gemini, claude, reddit] = results;
-    const args = Utils.parseArgs($argument);
-    const netflixPrice = (netflix.status === STATUS.OK && args.nfprice !== "false")
-      ? await ServiceChecker.getNetflixPrice(netflix.region)
+    const [netflix, disney, hbomax, youtube, spotify, chatgpt, gemini, claude, reddit, viu] = results;
+    const netflixPrice = (netflix.status === STATUS.OK && pricesPromise)
+      ? await ServiceChecker.getNetflixPrice(pricesPromise, netflix.region)
       : "";
 
     const services = [
@@ -744,7 +652,16 @@ class ServiceChecker {
       { name: "Gemini", result: gemini },
       { name: "Claude", result: claude },
       { name: "Reddit", result: reddit }
-    ].filter(Boolean);
+    ];
+
+    // Viu：默认关闭，且仅在可用（OK）时才显示；不可用 / 未启用一律不显示。
+    // 插到 Spotify 之前，让前几行都是流媒体（Netflix/Disney+/HBO Max/YouTube/Viu/Spotify）。
+    if (viu && viu.status === STATUS.OK) {
+      const at = services.findIndex(s => s.name === "Spotify");
+      services.splice(at < 0 ? services.length : at, 0, { name: "Viu", result: viu });
+    }
+
+    if (args.notify === "true") notifyUnlockChanges(services);
 
     const lines = services.map(s => Utils.buildLine(s.name, s.result, s.suffix));
     const totalCount = services.length;

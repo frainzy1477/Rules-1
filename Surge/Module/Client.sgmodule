@@ -1,5 +1,6 @@
 #!name=Client Module
 #!desc=macOS Client Rule
+#!category=HotKids
 #!system=mac
 
 [Rule]
@@ -21,3 +22,5 @@ PROCESS-NAME,WebTorrent,DIRECT
 PROCESS-NAME,WebTorrent Helper,DIRECT
 # > Router
 DOMAIN,router.asus.com,DIRECT
+# > Ziniao
+PROCESS-NAME,*ziniao*,DIRECT

@@ -1,6 +1,6 @@
 payload:
+  ### fork from https://raw.githubusercontent.com/ConnersHua/RuleGo/master/Surge/Ruleset/Extra/PayPal.list
   # > PayPal
-  # USER-AGENT,PayPal*
   - DOMAIN-SUFFIX,paypal.com
   - DOMAIN-SUFFIX,paypal.me
   - DOMAIN-SUFFIX,paypal-mktg.com

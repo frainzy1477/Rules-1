@@ -1,4 +1,5 @@
-# > iQIYI Intl
+# > IQ
+### Streaming TW
 USER-AGENT,iQIYI*
 USER-AGENT,QIYIVideo*
 USER-AGENT,QYPlayer*
@@ -27,7 +28,7 @@ DOMAIN,chuangcachecdnoversea-tw.inter.iqiyi.com
 DOMAIN,chuangcachecdnoversea-tw.inter.ptqy.gitv.tv
 DOMAIN-KEYWORD,akmcdnoverse
 DOMAIN-KEYWORD,chuangcachecdnoversea
-IP-CIDR,2.21.22.17/32,no-resolve 
+IP-CIDR,2.21.22.17/32,no-resolve
 IP-CIDR,23.40.241.251/32,no-resolve
 IP-CIDR,23.40.242.10/32,no-resolve
 IP-CIDR,23.210.215.154/32,no-resolve

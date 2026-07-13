@@ -1,0 +1,108 @@
+# ════════════════════════════════════════════════════════════════
+# sync-config.txt — 多平台配置骨架
+# ════════════════════════════════════════════════════════════════
+# 用途：以 Surge/Profile.conf 为源，派生各平台配置骨架
+# 消费：.github/scripts/sync-config.py
+# 输出：Clash / Quantumult X / Loon / Surfboard（见各平台块 >> 行）
+#
+# 格式：
+#   # Platform          平台块（Surge / Clash / Quantumult X / Loon / Surfboard）
+#   >>  path            文件路径（Surge 块为源文件；其他为输出目标）
+#   # > Skip            跳过关键词（Surge 块 = 全局；平台块 = 仅该平台）
+#   # > Builtin         静态注入块（内容原样写入输出文件）
+#                       << path 引用文件作为输出头部
+#                       锚点：注释 # 说明 // 关键词。关键词只匹配输出里的
+#                       「段落开头注释」（如 # Google / # > Google），命中后
+#                       把内容注入到该段落之后（关键词=子串、忽略大小写；
+#                       URL 的 :// 不会被误判）。因此写 // Google 即可，无需
+#                       担心撞到 "Google AI Studio" 或策略名 🔍 Google。
+#                       rules 段支持多段多锚点：每个 # … // 关键词 各自成段、
+#                       各按自身锚点插入；无锚点的内容插到 MATCH 之前。
+#                       proxy-groups 段取首个 // 锚点（无则插到段首）。
+#                       Clash 专属：注入的 RULE-SET / DOMAIN-SET 会自动生成
+#                       对应 rule-provider，无需手写 rule-providers:。
+#   # > Mapping         URL 映射（X => Y）；右侧留空表示路径不变仅规范扩展名
+#   # > Rename          Provider 名称映射（stem => 自定义名称）
+#   # > Gist            URL 反代（ReverseProxy => host）；平台块=局部，Surge 块=全局
+# ════════════════════════════════════════════════════════════════
+
+# Surge
+>> Surge/Profile.conf
+# > Skip
+Gateway
+
+# Clash
+>> Clash/Sample.yaml
+# > Builtin
+<< .github/scripts/sync-config/clash.ini
+# > Gist
+ReverseProxy => fastly.jsdelivr.net
+# > Skip
+iCloud
+Apple News
+Apple TV
+# > Mapping
+VirgilClyne/GetSomeFries =>
+https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/private.txt => https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/private.mrs
+https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/direct.txt => https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/cn.mrs
+https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/proxy.txt => https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/geolocation-!cn.mrs
+https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/cncidr.txt => https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/cn.mrs
+https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/reject.txt => https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Clash/RuleSet/Reject.mrs
+# > Rename
+rule-providers:
+  Block => AdBlock
+  HTTPDNS.Block => HTTPDNS
+  ASN.China => China ASN
+  Gemini => Google AI Studio
+  GenAI => AIGC
+  geolocation-!cn => Global
+  geosite/cn => China
+  private => Private
+  geoip/cn => China IP
+
+# Quantumult X
+>> Quantumult/Sample.conf
+# > Builtin
+<< .github/scripts/sync-config/qx.ini
+# > Skip
+iCloud
+Apple News
+# > Rename
+[policy]
+  Proxy => Outbound
+  AdGuard => AdBlock
+[filter_remote]
+  Block => Adblock
+  HTTPDNS.Block => HTTPDNS
+  Spark => Mail
+  ASN.China => China ASN
+  iCloud.PrivateRelay => iCloud Private Relay
+  proxy => Global
+  direct => China
+  private => Private
+  reject => Reject
+  cncidr => China IP
+
+# Loon
+>> Surge/Balloon.lcf
+# > Builtin
+<< .github/scripts/sync-config/loon.ini
+# > Rename
+[Remote Rule]
+  Block => Adblock
+  HTTPDNS.Block => HTTPDNS
+  Spark => Mail
+  ASN.China => China ASN
+  iCloud.PrivateRelay => iCloud Private Relay
+  proxy => Global
+  direct => China
+  private => Private
+  reject => Reject
+  cncidr => China IP
+
+# Surfboard
+>> Surge/Surfboard.conf
+# > Builtin
+<< .github/scripts/sync-config/surfboard.ini
+# > Skip
+Speedtest

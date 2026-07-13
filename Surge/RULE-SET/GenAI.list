@@ -18,9 +18,13 @@ DOMAIN-SUFFIX,gateway.icloud.com
 
 # Anthropic
 # > Claude
+DOMAIN-SUFFIX,clau.de
 DOMAIN-SUFFIX,claude.ai
 DOMAIN-SUFFIX,claude.com
 DOMAIN-SUFFIX,anthropic.com
+DOMAIN-SUFFIX,claudeusercontent.com
+IP-CIDR,160.79.104.0/21,no-resolve
+IP-CIDR6,2607:6bc0::/32,no-resolve
 
 # OpenAI
 # > ChatGPT
@@ -63,6 +67,7 @@ DOMAIN-SUFFIX,makersuite.google.com
 DOMAIN,aistudio.google.com
 DOMAIN,alkalicore-pa.clients6.google.com
 DOMAIN,alkalimakersuite-pa.clients6.google.com
+DOMAIN,aida.googleapis.com
 # > DeepMind
 DOMAIN-SUFFIX,deepmind.com
 DOMAIN-SUFFIX,deepmind.google
@@ -80,6 +85,8 @@ DOMAIN-KEYWORD,labs.google
 
 # JetBrains AI
 DOMAIN-SUFFIX,grazie.ai
+DOMAIN-SUFFIX,jetbrains.ai
+DOMAIN-SUFFIX,grazie.aws.intellij.net
 
 # Meta
 DOMAIN-SUFFIX,meta.ai
@@ -90,6 +97,7 @@ DOMAIN,imagine.meta.com
 DOMAIN,copilot.microsoft.com
 DOMAIN,sydney.bing.com
 DOMAIN,www.bing.com
+DOMAIN,copilot-proxy.githubusercontent.com
 # > GitHub Copilot
 DOMAIN-SUFFIX,githubcopilot.com
 
@@ -103,16 +111,10 @@ DOMAIN-SUFFIX,pplx.ai
 DOMAIN,pplx-res.cloudinary.com
 
 # xAI
+DOMAIN-SUFFIX,x.ai
 DOMAIN-SUFFIX,grok.com
-DOMAIN-SUFFIX,x.ai  
+DOMAIN-SUFFIX,grokipedia.com
 
-# ByteDance
-# > Doubao Dola
-DOMAIN-SUFFIX,dola.com
-DOMAIN-SUFFIX,cici.com
-DOMAIN-SUFFIX,ciciai.com
-DOMAIN,abtestvm-sg.bytedance.com
-DOMAIN-WILDCARD,abtest*.byteoversea.com
-
-# Affinity
+# Canva
+# > Affinity
 DOMAIN,d3ssuo6fbvr.cloudfront.net

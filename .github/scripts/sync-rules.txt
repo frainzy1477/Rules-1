@@ -1,0 +1,39 @@
+# ════════════════════════════════════════════════════════════════
+# sync-rules.txt — 外部规则来源清单
+# ════════════════════════════════════════════════════════════════
+# 用途：拉取第三方规则集，规范化后落库为各平台原生格式
+# 消费：.github/scripts/sync-rules.py
+# 输出：Surge/RULE-SET · Clash/RuleSet · sing-box/source（按段派生）
+#
+# 格式：
+#   # >> 段              段落（Surge / Clash / Module）
+#   URL,名称            RULE-SET 来源与落库名（Apple/Apple News = 子目录/名）
+#   DOMAIN-SET,URL,名称  DOMAIN-SET 格式来源（裸域名 / . 前缀域名）
+#   URL,名称 #!key=value 行内覆盖（Module 段 name/desc/author/category 等）
+# ════════════════════════════════════════════════════════════════
+
+# >> Surge
+https://raw.githubusercontent.com/LM-Firefly/Rules/master/PROXY/Dropbox.list,Dropbox
+https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Google.list,Google
+https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Twitter.list,Twitter
+https://raw.githubusercontent.com/ConnersHua/RuleGo/master/Surge/Ruleset/Extra/PayPal.list,PayPal
+https://raw.githubusercontent.com/ConnersHua/RuleGo/master/Surge/Ruleset/Extra/Telegram.list,Telegram
+https://raw.githubusercontent.com/SukkaW/Surge/master/Source/non_ip/microsoft.conf,Microsoft
+https://raw.githubusercontent.com/SukkaW/Surge/master/Source/non_ip/apple_services.conf,Apple/Apple
+https://raw.githubusercontent.com/SukkaW/Surge/master/Source/ip/apple_services.conf,Apple/Apple
+https://raw.githubusercontent.com/SukkaW/Surge/master/Source/non_ip/apple_cn.conf,Apple/Apple CN
+https://raw.githubusercontent.com/NSRingo/News/main/rulesets/News.list,Apple/Apple News
+https://raw.githubusercontent.com/QuixoticHeart/rule-set/ruleset/loon/apns.list,Apple/APNS
+https://raw.githubusercontent.com/SukkaLab/ruleset.skk.moe/master/List/ip/reject.conf,Bogus
+DOMAIN-SET,https://raw.githubusercontent.com/SukkaLab/ruleset.skk.moe/master/List/domainset/reject_phishing.conf,Phishing
+DOMAIN-SET,https://raw.githubusercontent.com/SukkaW/Surge/master/Source/domainset/speedtest.conf,Speedtest
+
+# >> Clash
+DOMAIN-SET,https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt,Reject
+
+# >> Module
+https://raw.githubusercontent.com/QingRex/LoonKissSurge/main/Surge/广告平台拦截器.sgmodule,BlockAdsBase #!desc=此插件是所有去广告插件的基础，只针对广告平台处理。你依然需要安装其他去广告插件来搭配使用，并确保此插件始终排序在顶部 #!category=去广告
+https://raw.githubusercontent.com/kokoryh/Sparkle/master/release/surge/module/bilibili.sgmodule,Bilibili #!name=哔哩哔哩去广告 #!desc=哔哩哔哩去广告，部分 App 需清除缓存或重新安装后才会生效 #!author=kokoryh #!category=去广告
+https://raw.githubusercontent.com/Keywos/rule/main/script/wy/wy.sgmodule,CloudMusic #!name=网易云音乐去广告 #!desc=网易云音乐去广告，部分 App 需清除缓存或重新安装后才会生效 #!author=Keywos #!category=去广告
+https://raw.githubusercontent.com/fmz200/wool_scripts/main/Surge/module/split/partX/Xiaohongshu.sgmodule,RedNote #!name=小红书去广告 #!desc=小红书去广告，部分 App 需清除缓存或重新安装后才会生效 #!author=fmz200 #!category=去广告
+https://raw.githubusercontent.com/fmz200/wool_scripts/main/Surge/module/weibo.module,Weibo #!name=微博去广告 #!desc=微博去广告，部分 App 需清除缓存或重新安装后才会生效 #!author=fmz200 #!category=去广告

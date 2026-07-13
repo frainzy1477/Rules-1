@@ -1,0 +1,33 @@
+{
+  "_comment": "Clash/Script/MyScriptColor.js 相对 Clash/Script/Script.js 的私人差异声明，由 sync-config.py 读取并叠加在自动生成的基座上。改这个文件即可调整差异，不要直接手改 MyScriptColor.js（会被下次同步覆盖）。extends 声明基于 myscript.overlay.json 已生成的结果继续叠加——在其地区/Relay 分组之上，为各策略组统一替换为 Liquid Glass 图标（icon_overrides）。",
+
+  "output": "Clash/Script/MyScriptColor.js",
+
+  "extends": "myscript.overlay.json",
+
+  "icon_overrides": {
+    "🔰 Proxy": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Shield.png",
+    "🎬 Streaming": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Video.png",
+    "📺 CNTV": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/TV.png",
+    "🍎 Apple": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Bitten%20Apple.png",
+    "🔍 Google": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Google.png",
+    "☁️ OneDrive": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/OneDrive.png",
+    "Ⓜ️ Microsoft": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Windows.png",
+    "📬 Telegram": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Telegram.png",
+    "🤖 AIGC": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Bot.png",
+    "🪙 Crypto": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Bitcoin.png",
+    "💳 Finance": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Wallet.png",
+    "📧 Mail": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Email.png",
+    "⏱️ Speedtest": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Speed.png",
+    "🚧 AdGuard": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/AdBlock.png",
+    "🔘 DIRECT": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Direct.png",
+    "⛔️ REJECT": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Reject.png",
+    "📛 REJECT-DROP": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Reject.png",
+    "🇺🇳 Server": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Global.png",
+    "🇸🇱 Relay": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Protect.png",
+    "🇭🇰 HK Relay": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Protect.png",
+    "🇨🇳 TW Relay": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Protect.png",
+    "🇯🇵 JP Relay": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Protect.png",
+    "🇺🇸 US Relay": "https://fastly.jsdelivr.net/gh/HotKids/Rules@master/Quantumult/X/Images/Liquid%20Glass/Protect.png"
+  }
+}

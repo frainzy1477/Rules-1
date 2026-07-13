@@ -1,0 +1,13 @@
+# > BBC iPlayer
+### Streaming
+USER-AGENT,BBCiPlayer*
+DOMAIN-KEYWORD,bbcfmt
+DOMAIN-KEYWORD,uk-live
+DOMAIN-SUFFIX,bbc.com
+DOMAIN-SUFFIX,bbc.co.uk
+DOMAIN-SUFFIX,bbci.co.uk
+DOMAIN,ssl-bbcsmarttv.2cnt.net
+DOMAIN,vod-dash-uk-live.akamaized.net
+DOMAIN,vod-thumb-uk-live.akamaized.net
+DOMAIN,vod-dash-uk-live.bbcfmt.hs.llnwd.net
+DOMAIN,vod-thumb-uk-live.bbcfmt.hs.llnwd.net

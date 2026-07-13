@@ -1,11 +1,8 @@
 payload:
   # > WeTV
   # USER-AGENT,WeTV*
-  - PROCESS-NAME,com.tencent.qqlivei18n
-  # PROCESS-NAME,com.tencent.qqlivei18n.us
-  - PROCESS-NAME,com.ktcp.osvideo
   - DOMAIN-SUFFIX,wetv.vip
-  - DOMAIN-SUFFIX,wetvinfo.com  
+  - DOMAIN-SUFFIX,wetvinfo.com
   - DOMAIN,wetv.tv.qq.com
   - DOMAIN,wetv.acc.qq.com
   - DOMAIN,hwvip.video.qq.com
@@ -13,7 +10,7 @@ payload:
   # DOMAIN,oth.str.mdt.qq.com
   # DOMAIN-SUFFIX,meovse.com
   - IP-CIDR,150.109.28.51/32,no-resolve
-  # IP-CIDR,203.205.136.0/23,no-resolve
+  # IP-CIDR,203.205.136.0/23,no-resolve #如直连，请加入代理
 
-  # > iFlix
-  - DOMAIN-SUFFIX,iflix.com
+  # URL-REGEX,^https?:\/\/((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\/varietyts\.tc\.qq\.com
+  # force-http-engine-hosts = %APPEND% 203.205.13?.*

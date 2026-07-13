@@ -1,0 +1,7 @@
+# SNS GeoLoc
+# > Douyin
+DOMAIN-SUFFIX,amemv.com,GeoLoc
+DOMAIN-SUFFIX,douyinvod.com,GeoLoc
+
+# > RedNote
+DOMAIN,edith.xiaohongshu.com,GeoLoc

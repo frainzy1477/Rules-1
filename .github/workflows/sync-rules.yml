@@ -1,0 +1,107 @@
+name: Sync Rules
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'Surge/RULE-SET/**'
+      - '.github/scripts/sync-rules.txt'
+      - '.github/scripts/sync-rules.py'
+      - '.github/scripts/_common.py'
+      # 编译步骤（.srs / .mrs）改动后立即重编译
+      - '.github/workflows/sync-rules.yml'
+  schedule:
+    - cron: '0 16 * * *'   # 每天 UTC 16:00 = UTC+8 00:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 与 sync-modules / sync-config 共用同一组，串行化对 master 的 push，避免并发 push 冲突
+concurrency:
+  group: push-master
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        run: git clone --depth=1 "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" .
+
+      - name: Run sync script
+        run: python3 .github/scripts/sync-rules.py
+
+      - name: Compile sing-box binary rule-sets (.srs)
+        env:
+          # sing-box 官方 CLI 版本（用于 rule-set compile）。source .json 声明
+          # version:2（需 sing-box ≥1.10），此处固定版本以保证 .srs 产物可复现，
+          # 升级内核时手动 bump 即可（与 lint.yml 的 sing-box check 保持同版本）。
+          SING_BOX_VERSION: "1.12.0"
+        run: |
+          set -euo pipefail
+          url="https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz"
+          curl -fsSL "$url" -o /tmp/sing-box.tgz
+          tar -xzf /tmp/sing-box.tgz -C /tmp
+          SB="/tmp/sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box"
+          "$SB" version
+
+          mkdir -p sing-box/rule-set
+          # 源 .json → 二进制 .srs（compile 保留 source 声明的 version）；
+          # 任一文件编译失败即让整步失败（while 在管道子 shell 内，需显式 exit）
+          find sing-box/source -maxdepth 1 -name '*.json' -print0 | while IFS= read -r -d '' f; do
+            stem="$(basename "$f" .json)"
+            "$SB" rule-set compile --output "sing-box/rule-set/${stem}.srs" "$f" || exit 1
+          done
+          # 清理孤儿 .srs（对应 source .json 已删除）
+          find sing-box/rule-set -maxdepth 1 -name '*.srs' -print0 | while IFS= read -r -d '' s; do
+            stem="$(basename "$s" .srs)"
+            [ -f "sing-box/source/${stem}.json" ] || rm -f "$s"
+          done
+
+      - name: Compile mihomo binary rule-sets (.mrs)
+        run: |
+          set -euo pipefail
+          # mihomo 官方 CLI（用于 convert-ruleset）：mrs 只支持 domain / ipcidr 两种
+          # behavior，取 latest release（版本号经 version.txt 资产解析）
+          VER=$(curl -fsSL https://github.com/MetaCubeX/mihomo/releases/latest/download/version.txt)
+          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-amd64-${VER}.gz" | gunzip > /tmp/mihomo
+          chmod +x /tmp/mihomo
+          /tmp/mihomo -v
+
+          # 扫描 Clash/RuleSet 产物：payload 条目无逗号 → domain / 含 CIDR → ipcidr，
+          # classical（带规则类型前缀）跳过；同名 .mrs 与源文件并存，孤儿 .mrs 清理
+          python3 - <<'EOF'
+          import re, subprocess, sys
+          from pathlib import Path
+
+          d = Path("Clash/RuleSet")
+          compiled = set()
+          for src in sorted([*d.glob("*.yaml"), *d.glob("*.txt")]):
+              first = next((l.strip()[2:].strip() for l in src.read_text(encoding="utf-8").splitlines()
+                            if l.strip().startswith("- ")), None)
+              if first is None or "," in first:
+                  continue  # 空文件或 classical（TYPE,value）
+              behavior = "ipcidr" if re.match(r"^[0-9a-fA-F:.]+/\d+$", first.strip("'\"")) else "domain"
+              out = d / f"{src.stem}.mrs"
+              subprocess.run(["/tmp/mihomo", "convert-ruleset", behavior, "yaml", str(src), str(out)],
+                             check=True)
+              compiled.add(out.name)
+              print(f"  ✓ {out} ({behavior})")
+          for orphan in d.glob("*.mrs"):
+              if orphan.name not in compiled:
+                  orphan.unlink()
+                  print(f"  ✗ 删除孤儿 {orphan}")
+          EOF
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Surge/RULE-SET/ Surge/Module/ Quantumult/X/Filter/ Clash/RuleSet/ sing-box/source/ sing-box/rule-set/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync RULE-SET → QX / Clash / sing-box [auto]"
+            git push
+          fi
